@@ -3,7 +3,7 @@
 Download a spreadsheet with pricing history for drugs in a drug class on the
 popular prescription price comparison site, goodrx.com!
 
-![RxHistory Banner](img/smallbanner.png)
+[![RxHistory Banner](img/smallbanner.png)](https://chrome.google.com/webstore/detail/rxhistory/nhblpgnkmlajcpfbddnjpnlnplmdldml)
 
 This Chrome extension supports any number of drugs, and processes prices
 automatically.
@@ -15,6 +15,8 @@ format, year-month-day (YYYY-MM-DD, ex: 2017-01-27).
 **Author**: Adel Qalieh
 
 **License**: [GPLv3](license.txt)
+
+**Download**: [Chrome Web Store](https://chrome.google.com/webstore/detail/rxhistory/nhblpgnkmlajcpfbddnjpnlnplmdldml)
 
 ## Usage
 
