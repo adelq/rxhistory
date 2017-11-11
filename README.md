@@ -12,3 +12,12 @@ format, year-month-day (YYYY-MM-DD, ex: 2017-01-27).
 **Author**: Adel Qalieh
 
 **License**: [GPLv3](license.txt)
+
+## Developing
+
+To download required JS libraries, use the Makefile:
+
+    make js
+
+Then, install the Chrome extension in Chrome at chrome://extensions using
+Developer mode to load an unpacked extension.
