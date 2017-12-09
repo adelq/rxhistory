@@ -17,9 +17,20 @@ chrome.pageAction.onClicked.addListener(function(tab) {
   chrome.tabs.sendMessage(tab.id, "Background page started.", function (response) {
     // receive the HTML from the tab's page and convert it to a DOM Document
     var doc = htmlToDocument(response);
-    main(doc);
+    getSettings(doc);
   });
 });
+
+// Get user settings
+var longFormat = false;
+var getSettings = function(doc) {
+  chrome.storage.sync.get(['longFormat'], function(items) {
+    if (typeof items.longFormat !== 'undefined') {
+      longFormat = items.longFormat;
+    }
+    main(doc);
+  });
+}
 
 var htmlToDocument = function(str) {
     // HTML5 <template> allows any element underneath it
@@ -32,19 +43,22 @@ var htmlToDocument = function(str) {
 
 var MAX_SHEET_NAME_LENGTH = 28;
 
-var getDrugNames = function(doc) {
+var getDrugNames = function(doc, longformat) {
   var drugEl = doc.querySelectorAll('.condition-table-drug-name-primary, .drug-name-primary');
   var drugs = [];
   var dups = {};
   for (var i = 0, len = drugEl.length; i < len; i++) {
     var drug = drugEl[i].textContent;
-    // Drug name is used for sheet name, some cleanup:
-    // Sheet name cannot have special characters
-    // Remove any of \ / ? * [ ]
-    drug.replace(/[\\\/\?\*\[\]]/gi, '');
-    // Sheet name must not exceed 31 characters
-    if (drug.length > MAX_SHEET_NAME_LENGTH) {
-      drug = drug.substring(0, MAX_SHEET_NAME_LENGTH) + "...";
+    // Drug name is used for sheet name in short format
+    // Cleanup required:
+    if (!longformat) {
+      // Sheet name cannot have special characters
+      // Remove any of \ / ? * [ ]
+      drug.replace(/[\\\/\?\*\[\]]/gi, '');
+      // Sheet name must not exceed 31 characters
+      if (drug.length > MAX_SHEET_NAME_LENGTH) {
+        drug = drug.substring(0, MAX_SHEET_NAME_LENGTH) + "...";
+      }
     }
 
     if (drug in dups) {
@@ -107,8 +121,33 @@ var createWorkbook = function(drugs, sparklines) {
   return wb;
 }
 
-var filename = function(doc) {
-  var pageTitle = doc.querySelector('h1').textContent;
+var createLongWorkbook = function(title, drugs, sparklines) {
+  var wb = {};
+  wb.SheetNames = [title];
+  wb.Sheets = {};
+
+  var mastersheet = [["Drug", "Date", "Price"]];
+  for (var i = 0, ndrugs = drugs.length; i < ndrugs; i++) {
+    var sparkline = processSparklineText(sparklines[i]);
+    sparkline.shift();
+    for (var j = 0, nprices = sparkline.length; j < nprices; j++) {
+      sparkline[j].unshift(drugs[i]);
+    }
+    mastersheet = mastersheet.concat(sparkline);
+  }
+
+  var ws = XLSX.utils.aoa_to_sheet(mastersheet);
+  for (var cell in ws) {
+    if (ws[cell].t === "n") {
+      ws[cell].z = "$0.00";
+    }
+  }
+
+  wb.Sheets[title] = ws;
+  return wb;
+}
+
+var filename = function(pageTitle) {
   var niceTitle = pageTitle.replace(/\W+/g, '-').toLowerCase();
   return niceTitle + ".xlsx"
 }
@@ -123,9 +162,18 @@ var s2ab = function(s) {
 }
 
 var main = function(doc) {
-  var wb = createWorkbook(getDrugNames(doc), getSparklineText(doc));
+  // Create workbook
+  var wb;
+  var title = doc.querySelector('h1').textContent;
+  var drugNames = getDrugNames(doc);
+  var sparklines = getSparklineText(doc);
+  if (longFormat) {
+    wb = createLongWorkbook(title, drugNames, sparklines);
+  } else {
+    wb = createWorkbook(drugNames, sparklines);
+  }
   wb.Props = {
-    Title: doc.querySelector('h1').textContent,
+    Title: title,
     Author: "Adel Qalieh"
   }
   var wOpts = {
@@ -133,9 +181,11 @@ var main = function(doc) {
     bookSST: false,
     type: 'binary'
   }
+
+  // Create and save XLSX
   var wbOut = XLSX.write(wb, wOpts);
   var blobType = {
     type: 'application/octet-stream'
   }
-  saveAs(new Blob([s2ab(wbOut)], blobType), filename(doc))
+  saveAs(new Blob([s2ab(wbOut)], blobType), filename(title))
 }

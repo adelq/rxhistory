@@ -22,9 +22,14 @@
     "default_icon": "icons/icon19.png",
     "default_title": "Download price history spreasheet"
   },
+  "options_ui": {
+    "page": "src/settings/options.html",
+    "chrome_style": true
+  },
   "permissions": [
     "https://www.goodrx.com/*",
-    "declarativeContent"
+    "declarativeContent",
+    "storage"
   ],
   "content_scripts": [
     {
