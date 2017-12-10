@@ -91,25 +91,36 @@ var getSparklineText = function(doc) {
   return text;
 }
 
-var processSparklineText = function(sparkLine) {
-  var map = [["Date", "Price"]];
+var getDosages = function(doc) {
+  var tooltipEl = doc.querySelectorAll('.tooltip-fair-price');
+  var dosages = [];
+  for (var i = 0, len = tooltipEl.length; i < len; i++) {
+    var tooltipText = tooltipEl[i].dataset.originalTitle;
+    var dosage = tooltipText.split("Price based on ")[1].split(" (generic")[0]
+    dosages.push(dosage);
+  }
+  return dosages;
+}
+
+var buildTable = function(sparkLine, dosage) {
+  var map = [["Date", "Price", "Dosage"]];
   var lines = sparkLine.split('<br>')
   for (var i = 0, nlines = lines.length; i < nlines; i++) {
     var line = lines[i].split(': ');
     var date = moment(line[0], "MMM DD 'YY").format("YYYY-MM-DD");
     var price = parseFloat(line[1].substring(1));
-    map.push([date, price]);
+    map.push([date, price, dosage]);
   }
   return map;
 }
 
-var createWorkbook = function(drugs, sparklines) {
+var createWorkbook = function(drugs, sparklines, dosages) {
   var wb = {};
   wb.SheetNames = drugs;
   wb.Sheets = {};
 
   for (var i = 0, ndrugs = drugs.length; i < ndrugs; i++) {
-    var ws = XLSX.utils.aoa_to_sheet(processSparklineText(sparklines[i]));
+    var ws = XLSX.utils.aoa_to_sheet(buildTable(sparklines[i], dosages[i]));
     for (var cell in ws) {
       if (ws[cell].t === "n") {
         ws[cell].z = "$0.00";
@@ -121,14 +132,14 @@ var createWorkbook = function(drugs, sparklines) {
   return wb;
 }
 
-var createLongWorkbook = function(title, drugs, sparklines) {
+var createLongWorkbook = function(title, drugs, sparklines, dosages) {
   var wb = {};
   wb.SheetNames = [title];
   wb.Sheets = {};
 
-  var mastersheet = [["Drug", "Date", "Price"]];
+  var mastersheet = [["Drug", "Date", "Price", "Dosage"]];
   for (var i = 0, ndrugs = drugs.length; i < ndrugs; i++) {
-    var sparkline = processSparklineText(sparklines[i]);
+    var sparkline = buildTable(sparklines[i], dosages[i]);
     sparkline.shift();
     for (var j = 0, nprices = sparkline.length; j < nprices; j++) {
       sparkline[j].unshift(drugs[i]);
@@ -167,10 +178,11 @@ var main = function(doc) {
   var title = doc.querySelector('h1').textContent;
   var drugNames = getDrugNames(doc);
   var sparklines = getSparklineText(doc);
+  var dosages = getDosages(doc);
   if (longFormat) {
-    wb = createLongWorkbook(title, drugNames, sparklines);
+    wb = createLongWorkbook(title, drugNames, sparklines, dosages);
   } else {
-    wb = createWorkbook(drugNames, sparklines);
+    wb = createWorkbook(drugNames, sparklines, dosages);
   }
   wb.Props = {
     Title: title,
